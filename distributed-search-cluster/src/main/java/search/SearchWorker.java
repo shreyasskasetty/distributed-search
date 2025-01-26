@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public class SearchWorker implements OnRequestCallback {
-    private final String WORKER_ENDPOINT = "/task";
+    private final static String WORKER_ENDPOINT = "/task";
 
     private Result createResult(List<String> searchTerms, List<String> documents){
         Result result = new Result();
@@ -35,8 +35,7 @@ public class SearchWorker implements OnRequestCallback {
         }
         BufferedReader bufferedReader = new BufferedReader(fileReader);
         List<String> lines = bufferedReader.lines().collect(Collectors.toList());
-        List<String> words = TFIDF.getWordsFromDocument(lines);
-        return words;
+        return TFIDF.getWordsFromDocument(lines);
     }
     @Override
     public byte[] handleRequest(byte[] requestPayload) {
