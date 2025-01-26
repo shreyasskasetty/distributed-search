@@ -1,0 +1,15 @@
+<configuration>
+    <!-- Root logger at WARN -->
+    <root level="WARN">
+        <appender-ref ref="CONSOLE" />
+    </root>
+
+    <!-- Specifically set ZooKeeper logs to WARN -->
+    <logger name="org.apache.zookeeper" level="WARN" />
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss} %-5level %logger{1}:%line - %msg%n</pattern>
+        </encoder>
+    </appender>
+</configuration>
