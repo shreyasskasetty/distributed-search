@@ -1,5 +1,8 @@
 package networking;
 
+import model.Result;
+import utils.SerializationUtils;
+
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -12,11 +15,13 @@ public class WebClient {
         this.client = HttpClient.newBuilder().version(HttpClient.Version.HTTP_2).build();
     }
 
-    public CompletableFuture<String> sendTask(String url, byte[] requestPayload){
+    public CompletableFuture<Result> sendTask(String url, byte[] requestPayload){
         HttpRequest request = HttpRequest.newBuilder()
                 .POST(HttpRequest.BodyPublishers.ofByteArray(requestPayload))
                 .uri(URI.create(url))
                 .build();
-        return client.sendAsync(request, HttpResponse.BodyHandlers.ofString()).thenApply(HttpResponse::body);
+        return client.sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
+                .thenApply(HttpResponse::body)
+                .thenApply(responseBody -> (Result) SerializationUtils.deserialize(responseBody));
     }
 }

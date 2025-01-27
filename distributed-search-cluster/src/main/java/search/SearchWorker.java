@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public class SearchWorker implements OnRequestCallback {
-    private final static String WORKER_ENDPOINT = "/task";
+    public final static String WORKER_ENDPOINT = "/task";
 
     private Result createResult(List<String> searchTerms, List<String> documents){
         Result result = new Result();
