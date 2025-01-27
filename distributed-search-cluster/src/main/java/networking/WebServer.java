@@ -10,53 +10,57 @@ import java.net.InetSocketAddress;
 import java.util.concurrent.Executors;
 
 public class WebServer {
-    private final String STATUS_ENDPOINT = "/status";
-    private final int  DEFAULT_SERVER_PORT = 8080;
+    private static final String STATUS_ENDPOINT = "/status";
 
-    private int port;
-    private HttpServer server = null;
-    private OnRequestCallback onRequestCallback;
-    public WebServer(int port, OnRequestCallback onRequestCallback) {
+    private final int port;
+    private HttpServer server;
+    private final OnRequestCallback requestCallback;
+
+    public WebServer(int port, OnRequestCallback requestCallback) {
         this.port = port;
-        this.onRequestCallback = onRequestCallback;
+        this.requestCallback = requestCallback;
     }
 
-    public void startServer(){
+    public void startServer() {
         try {
             this.server = HttpServer.create(new InetSocketAddress(port), 0);
-        }catch (IOException e){
+        } catch (IOException e) {
             e.printStackTrace();
             return;
         }
-        HttpContext statusContext = this.server.createContext(STATUS_ENDPOINT);
-        HttpContext taskContext = this.server.createContext(onRequestCallback.getEndpoint());
+
+        HttpContext statusContext = server.createContext(STATUS_ENDPOINT);
+        HttpContext taskContext = server.createContext(requestCallback.getEndpoint());
 
         statusContext.setHandler(this::handleStatusCheckRequest);
         taskContext.setHandler(this::handleTaskRequest);
+
         server.setExecutor(Executors.newFixedThreadPool(8));
-        this.server.start();
+        server.start();
     }
 
-    public void handleStatusCheckRequest(HttpExchange exchange) throws IOException {
-        if(! exchange.getRequestMethod().equalsIgnoreCase("get")){
+    private void handleTaskRequest(HttpExchange exchange) throws IOException {
+        if (!exchange.getRequestMethod().equalsIgnoreCase("post")) {
             exchange.close();
             return;
         }
-        String statusMessage = "I am alive";
-        sendResponse(statusMessage.getBytes(), exchange);
-    }
 
-    public void handleTaskRequest(HttpExchange exchange) throws IOException {
-        if(! exchange.getRequestMethod().equalsIgnoreCase("post")){
-            exchange.close();
-            return;
-        }
-        byte[] responseBytes = onRequestCallback.handleRequest(exchange.getRequestBody().readAllBytes());
+        byte[] responseBytes = requestCallback.handleRequest(exchange.getRequestBody().readAllBytes());
+
         sendResponse(responseBytes, exchange);
     }
 
-    public void sendResponse(byte[] responseBytes, HttpExchange exchange) throws IOException {
-        System.out.println("Response String: "+ new String(responseBytes));
+    private void handleStatusCheckRequest(HttpExchange exchange) throws IOException {
+        if (!exchange.getRequestMethod().equalsIgnoreCase("get")) {
+            exchange.close();
+            return;
+        }
+
+        String responseMessage = "Server is alive\n";
+        sendResponse(responseMessage.getBytes(), exchange);
+    }
+
+    private void sendResponse(byte[] responseBytes, HttpExchange exchange) throws IOException {
         exchange.sendResponseHeaders(200, responseBytes.length);
         OutputStream outputStream = exchange.getResponseBody();
         outputStream.write(responseBytes);

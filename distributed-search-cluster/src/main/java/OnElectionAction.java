@@ -7,6 +7,7 @@ import search.SearchCoordinator;
 import search.SearchWorker;
 
 import java.net.Inet4Address;
+import java.net.InetAddress;
 import java.net.UnknownHostException;
 
 public class OnElectionAction implements OnElectionCallback {
@@ -34,7 +35,7 @@ public class OnElectionAction implements OnElectionCallback {
         webServer = new WebServer(port, searchCoordinator);
         webServer.startServer();
         try {
-            String currentServerAddress = String.format("http://%s:%d", Inet4Address.getLocalHost().getCanonicalHostName(), port);
+            String currentServerAddress = String.format("http://%s:%d%s", Inet4Address.getLocalHost().getCanonicalHostName(), port, searchCoordinator.getEndpoint());
             coordinatorServiceRegistry.registerToCluster(currentServerAddress);
         } catch (InterruptedException e) {
         } catch (KeeperException | UnknownHostException e) {
@@ -49,7 +50,7 @@ public class OnElectionAction implements OnElectionCallback {
             webServer.startServer();
         }
         try{
-            String currentServerAddress = String.format("http://%s:%d", Inet4Address.getLocalHost().getCanonicalHostName(), port);
+            String currentServerAddress = String.format("http://%s:%d%s", InetAddress.getLocalHost().getCanonicalHostName(), port, searchWorker.getEndpoint());
             workersServiceRegistry.registerToCluster(currentServerAddress);
         } catch (UnknownHostException e) {
         } catch (InterruptedException e) {

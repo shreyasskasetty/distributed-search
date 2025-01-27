@@ -13,6 +13,7 @@ public class TFIDF {
         for(String term : terms){
             documentData.addTermFrequency(term, TFIDF.calculateTermFrequency(term, words));
         }
+
         return documentData;
     }
 
@@ -61,7 +62,7 @@ public class TFIDF {
             documentList.add(document);
             documentScores.put(documentScore, documentList);
         }
-        return documentScores;
+        return documentScores.descendingMap();
     }
 
     private static double calculateTFIDFScore(List<String> terms, DocumentData documentData, Map<String, Double> termToIDFMap){
@@ -80,7 +81,7 @@ public class TFIDF {
         return wordsList;
     }
 
-    private static List<String> getWordsFromLine(String line){
+    public static List<String> getWordsFromLine(String line){
         return Arrays.asList(line.split("(\\.)+|(,)+|( )+|(-)+|(\\?)+|(!)+|(;)+|(:)+|(/d)+|(/n)+"));
     }
 }

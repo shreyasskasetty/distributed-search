@@ -37,10 +37,11 @@ public class SearchCoordinator implements OnRequestCallback {
         try {
             SearchModel.Request request = SearchModel.Request.parseFrom(requestPayload);
             SearchModel.Response response = createResponse(request);
-        } catch (InvalidProtocolBufferException e) {
-            return new byte[0];
+            return response.toByteArray();
+        } catch (InvalidProtocolBufferException | InterruptedException | KeeperException e) {
+            e.printStackTrace();
+            return SearchModel.Response.getDefaultInstance().toByteArray();
         }
-        return new byte[0];
     }
 
     private List<SearchModel.Response.DocumentStats> aggregateResults(List<Result> results, List<String> searchTerms){
@@ -74,22 +75,27 @@ public class SearchCoordinator implements OnRequestCallback {
         return sortedDocumentStats;
     }
 
-    private SearchModel.Response createResponse(SearchModel.Request request){
-       SearchModel.Response.Builder searchResponse = SearchModel.Response.newBuilder();
+    private SearchModel.Response createResponse(SearchModel.Request request) throws InterruptedException, KeeperException {
+        SearchModel.Response.Builder searchResponse = SearchModel.Response.newBuilder();
+
         System.out.println("Receieved the search query: " + request.getSearchQuery());
-        try {
-            List<String> searchTerms = getSearchTerms(request.getSearchQuery());
-            List<String> workers = this.workersServiceRegistry.getAllServiceAddresses();
-            if(workers.isEmpty()){
-                System.out.println("No workers available!");
-                return searchResponse.build();
-            }
-            List<Task> tasks = createTasks(workers.size(), searchTerms);
-            List<Result> results = sendTasksToWorkers(workers, tasks);
-            List<SearchModel.Response.DocumentStats> aggregatedResults = aggregateResults(results, searchTerms);
-            searchResponse.addAllRelevantDocuments(aggregatedResults);
-        } catch (KeeperException | InterruptedException e) {
+
+        List<String> searchTerms = getSearchTerms(request.getSearchQuery());
+        List<String> workers = this.workersServiceRegistry.getAllServiceAddresses();
+
+        if(workers.isEmpty()) {
+            System.out.println("No workers available!");
+            return searchResponse.build();
         }
+
+        List<Task> tasks = createTasks(workers.size(), searchTerms);
+
+        List<Result> results = sendTasksToWorkers(workers, tasks);
+
+        List<SearchModel.Response.DocumentStats> aggregatedResults = aggregateResults(results, searchTerms);
+
+        searchResponse.addAllRelevantDocuments(aggregatedResults);
+
         return searchResponse.build();
     }
 
@@ -97,22 +103,26 @@ public class SearchCoordinator implements OnRequestCallback {
         return TFIDF.getWordsFromLine(searchQuery);
     }
 
-    private List<Result> sendTasksToWorkers(List<String> workers, List<Task> tasks)  {
+    private List<Result> sendTasksToWorkers(List<String> workers, List<Task> tasks) {
         CompletableFuture<Result>[] futures = new CompletableFuture[workers.size()];
-        for(int i = 0; i < workers.size();i++){
-            String uri = String.format("%s/%s", workers.get(i), SearchWorker.WORKER_ENDPOINT);
-            byte[] payload = SerializationUtils.serialize(tasks.get(i));
-            futures[i] = client.sendTask(uri, payload);
+        for (int i = 0; i < workers.size(); i++) {
+            String worker = workers.get(i);
+            Task task = tasks.get(i);
+            byte[] payload = SerializationUtils.serialize(task);
+
+            futures[i] = client.sendTask(worker, payload);
         }
 
         List<Result> results = new ArrayList<>();
-        for(CompletableFuture<Result> future: futures){
+        for (CompletableFuture<Result> future : futures) {
             try {
                 Result result = future.get();
                 results.add(result);
-            }catch (ExecutionException | InterruptedException e){
+            } catch (InterruptedException | ExecutionException e) {
+                e.printStackTrace();
             }
         }
+        System.out.println(String.format("Received %d/%d results", results.size(), tasks.size()));
         return results;
     }
 
@@ -120,7 +130,7 @@ public class SearchCoordinator implements OnRequestCallback {
         List<Task> tasks = new ArrayList<>();
         List<List<String>> documentsForWorkers = splitDocumentsForWorkers(numOfWorkers);
         for(List<String> documents: documentsForWorkers){
-            Task task = Task.createTask(documents, searchTerms);
+            Task task = new Task(searchTerms, documents);
             tasks.add(task);
         }
         return tasks;
@@ -144,7 +154,7 @@ public class SearchCoordinator implements OnRequestCallback {
     private List<String> getDocumentsList(){
         File documentsDirectory = new File(BOOKS_DIRECTORY);;
         return Stream.of(Objects.requireNonNull(documentsDirectory.list()))
-                .map(documentName -> BOOKS_DIRECTORY + "/" + documentName).collect(Collectors.toList());
+                .map(documentName -> BOOKS_DIRECTORY + documentName).collect(Collectors.toList());
     }
 
     @Override

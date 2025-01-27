@@ -16,11 +16,13 @@ import java.util.stream.Collectors;
 public class SearchWorker implements OnRequestCallback {
     public final static String WORKER_ENDPOINT = "/task";
 
-    private Result createResult(List<String> searchTerms, List<String> documents){
+    private Result createResult(Task task){
         Result result = new Result();
+        List<String> documents = task.getDocuments();
+        System.out.println(String.format("Received %d documents to process", documents.size()));
         for(String document: documents){
             List<String> words = parseWordsFromDocument(document);
-            DocumentData documentData = TFIDF.createDocumentData(searchTerms, words);
+            DocumentData documentData = TFIDF.createDocumentData(task.getSearchTerms(), words);
             result.addDocumentData(document, documentData);
         }
         return result;
@@ -31,18 +33,22 @@ public class SearchWorker implements OnRequestCallback {
         try{
             fileReader = new FileReader(document);
         } catch (FileNotFoundException e) {
+            e.printStackTrace();
             return Collections.emptyList();
         }
         BufferedReader bufferedReader = new BufferedReader(fileReader);
         List<String> lines = bufferedReader.lines().collect(Collectors.toList());
         return TFIDF.getWordsFromDocument(lines);
     }
+
     @Override
     public byte[] handleRequest(byte[] requestPayload) {
         Task task = (Task) SerializationUtils.deserialize(requestPayload);
-        if(task != null){
-            Result result = createResult(task.getSearchTerms(), task.getDocuments());
+        try {
+            Result result = createResult(task);
             return SerializationUtils.serialize(result);
+        }catch (Exception e){
+            e.printStackTrace();
         }
         return new byte[0];
     }
